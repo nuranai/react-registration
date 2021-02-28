@@ -24,6 +24,8 @@ export class Form extends React.Component {
                 checkUpper: false,
                 checkLower: false
             },
+            isTakenUser: false,
+            isTakenEmail: false,
         };
 
         this.handleSubmit = this.handleSubmit.bind(this);
@@ -37,23 +39,53 @@ export class Form extends React.Component {
             inputEmail = event.target[1],
             inputPass = event.target[2],
             inputCheck = true,
+            takenUser = false,
+            takenEmail = false,
             userValidRegex = /^[a-zA-z0-9._-]{4,32}$/,
             emailValidRegex = /^[a-zA-Z0-9.!#$%&’*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$/,
             passValidRegex = /^(?=.*[0-9])(?=.*[A-Z])(?=.*[a-z])[A-Za-z0-9 !"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]{8,}$/;
-        inputCheck = inputCheck && validateInput(this.state.valueUser, userValidRegex, inputUser);
-        inputCheck = inputCheck && validateInput(this.state.valueEmail, emailValidRegex, inputEmail);
-        inputCheck = inputCheck && validateInput(this.state.valuePass, passValidRegex, inputPass);
-        if (inputCheck) {
+
+        inputCheck = validateInput(this.state.valueUser, userValidRegex, inputUser) && inputCheck;
+        inputCheck = validateInput(this.state.valueEmail, emailValidRegex, inputEmail) && inputCheck;
+        inputCheck = validateInput(this.state.valuePass, passValidRegex, inputPass) && inputCheck;
+
+        for (let i = 0; i < localStorage.length && (!takenUser || !takenEmail); i++) {
+            let key = localStorage.key(i);
+            let userData = JSON.parse(localStorage.getItem(key));
+            if (userData.user === this.state.valueUser && !takenUser) {
+                takenUser = true;
+                this.setState({ isTakenUser: true });
+            }
+            if (userData.email === this.state.valueEmail && !takenEmail) {
+                takenEmail = true;
+                this.setState({ isTakenEmail: true });
+            }
+        }
+
+        if (inputCheck && !takenEmail && !takenUser) {
             localStorage.setItem(inputUser.value, JSON.stringify({
-                user: inputUser.value, 
-                email: inputEmail.value, 
+                user: inputUser.value,
+                email: inputEmail.value,
                 password: inputPass.value
             }));
+            for (let i = 0; i < localStorage.length; i++) {
+                let key = localStorage.key(i);
+                console.log(`${key}: ${localStorage.getItem(key)}`);
+            }
         }
+
+        this.setState({
+            valueEmail: '',
+            valuePass: '',
+            valueUser: ''
+        })
     }
 
     handleEmailUserChange(e) {
-        this.setState({ [e.target.type === "email" ? "valueEmail" : "valueUser"]: e.target.value });
+        this.setState({
+            [e.target.type === "email" ? "valueEmail" : "valueUser"]: e.target.value,
+            [e.target.type === "email" ? "isTakenEmail" : "isTakenUser"]: false,
+        });
     }
 
     handlePasswordChange(e) {
@@ -75,8 +107,8 @@ export class Form extends React.Component {
         return (<div className="wrapper">
             <form onSubmit={this.handleSubmit}>
                 <p>Registration with Email</p>
-                <Username userValuePass={this.handleEmailUserChange} value={this.state.valueUser} />
-                <Email emailValuePass={this.handleEmailUserChange} value={this.state.valueEmail} />
+                <Username userValuePass={this.handleEmailUserChange} value={this.state.valueUser} isTaken={this.state.isTakenUser} />
+                <Email emailValuePass={this.handleEmailUserChange} value={this.state.valueEmail} isTakenEmail={this.state.isTakenEmail} />
                 <Password
                     passwordValuePass={this.handlePasswordChange}
                     value={this.state.valuePass}
@@ -100,18 +132,21 @@ class Username extends React.Component {
 
     render() {
         return (
-            <div className="input__wrapper">
-                <input
-                    type="text"
-                    placeholder="Username"
-                    onChange={this.userHandle}
-                    value={this.props.value}
-                >
-                </input>
-                {this.props.value.match(/^[a-zA-z0-9._-]{4,32}$/)
-                    ? <div className="tooltip tooltip__green"><i className="fa fa-check"></i></div>
-                    : <div className="tooltip">!<UserTooltip /></div>}
-            </div>
+            <>
+                <div className="input__wrapper">
+                    <input
+                        type="text"
+                        placeholder="Username"
+                        onChange={this.userHandle}
+                        value={this.props.value}
+                    >
+                    </input>
+                    {this.props.value.match(/^[a-zA-z0-9._-]{4,32}$/)
+                        ? <div className="tooltip tooltip__green"><i className="fa fa-check"></i></div>
+                        : <div className="tooltip">!<UserTooltip /></div>}
+                </div>
+                {this.props.isTaken && <span className="taken">Username is already taken</span>}
+            </>
         );
     }
 }
@@ -138,14 +173,17 @@ class Email extends React.Component {
 
     render() {
         return (
-            <div className="input__wrapper">
-                <input
-                    placeholder="Email"
-                    onChange={this.emailChange}
-                    type="email"
-                    value={this.props.value}
-                ></input>
-            </div>
+            <>
+                <div className="input__wrapper">
+                    <input
+                        placeholder="Email"
+                        onChange={this.emailChange}
+                        type="email"
+                        value={this.props.value}
+                    ></input>
+                </div>
+                {this.props.isTakenEmail && <span className="taken">Email is already taken</span>}
+            </>
         );
     }
 }
